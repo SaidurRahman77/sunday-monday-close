@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "466858302381",
+    "project_id": "sunday-monday-close",
+    "storage_bucket": "sunday-monday-close.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:466858302381:android:afa60764d2dcedd90adf24",
+        "android_client_info": {
+          "package_name": "com.example.sunday_monday_close"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhc-oQeNl1sEWTJKHqxuRkYZnua7ZjzRI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
