@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -149,6 +150,35 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         return;
+      }
+
+      // --------------------------------------------------
+      // ENSURE FIRESTORE USER DOCUMENT EXISTS
+      // --------------------------------------------------
+
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      final userSnapshot = await userRef.get();
+
+      if (!userSnapshot.exists) {
+        await userRef.set({
+          'uid': user.uid,
+          'name': user.displayName?.trim() ?? '',
+          'email': user.email?.trim() ?? email,
+          'accountStatus': 'active',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Keep basic Auth info synced without overwriting
+        // existing client/worker profile information.
+        await userRef.set({
+          'uid': user.uid,
+          'email': user.email?.trim() ?? email,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
 
       // Block suspended or removed accounts.
