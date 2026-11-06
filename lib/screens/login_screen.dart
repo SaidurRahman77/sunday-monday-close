@@ -11,6 +11,8 @@ import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import 'role_selection_screen.dart';
 
+import '../services/session_service.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -212,6 +214,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Login successful, reset failed attempt counter
       await _securityService.resetAttempts(email);
+
+      // Start a new 15-minute background session.
+      await SessionService.startSession();
 
       if (!mounted) return;
 

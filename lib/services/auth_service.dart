@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'session_service.dart';
 class AuthService {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
@@ -197,6 +197,7 @@ class AuthService {
   // --------------------------------------------------
 
   Future<void> logout() async {
+    await SessionService.clearSession();
     await _auth.signOut();
   }
 }
