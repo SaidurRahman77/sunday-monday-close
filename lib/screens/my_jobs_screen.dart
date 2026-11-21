@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../utils/duration_formatter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/job_service.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/job_countdown_card.dart';
 import 'client_applicants_screen.dart';
 import 'post_job_screen.dart';
 
@@ -485,9 +488,14 @@ class _JobCard
                 ],
               ),
 
-              const SizedBox(
-                height: 18,
-              ),
+              if (status.toLowerCase() == 'in_progress') ...[
+                const SizedBox(height: 14),
+                JobCountdownCard(job: job),
+                const SizedBox(height: 18),
+              ] else
+                const SizedBox(
+                  height: 18,
+                ),
 
               Container(
                 height: 1,
@@ -550,7 +558,7 @@ class _JobCard
                       ),
 
                       Text(
-                        '$durationHours hr',
+                        DurationFormatter.formatHours(durationHours),
                         style:
                             AppText.heading(
                           size: 14,

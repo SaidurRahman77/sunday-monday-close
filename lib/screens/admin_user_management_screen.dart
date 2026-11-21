@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/admin_user_service.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/search_suggestion_field.dart';
 import '../widgets/safe_text_input_dialog.dart';
 
 class AdminUserManagementScreen
@@ -406,6 +407,8 @@ class _AdminUserManagementScreenState
           'The user will be blocked from future logins until an admin reactivates the account.',
       actionLabel:
           'Suspend',
+      minimumLength: 10,
+      
     );
 
     if (reason == null ||
@@ -466,14 +469,18 @@ class _AdminUserManagementScreenState
     required String description,
     required String actionLabel,
     bool destructive = false,
+    int minimumLength = 0,
   }) {
     return showSafeTextInputDialog(
       context,
       title: title,
       description: description,
-      fieldLabel: 'Reason (optional)',
+      fieldLabel: minimumLength > 0
+          ? 'Reason (required)'
+          : 'Reason (optional)',
       actionLabel: actionLabel,
       destructive: destructive,
+      minimumLength: minimumLength,
     );
   }
 
@@ -651,6 +658,10 @@ class _AdminUserManagementScreenState
                       _SearchBox(
                         controller:
                             _searchController,
+                        options: SearchSuggestionField.collectOptions(
+                          users.expand((user) => [user['name'], user['email'],
+                            user['phone'], user['location']]),
+                        ),
                         onChanged:
                             (value) {
                           setState(() {
@@ -829,73 +840,34 @@ class _SearchBox
     extends StatelessWidget {
   const _SearchBox({
     required this.controller,
+    required this.options,
     required this.onChanged,
   });
 
-  final TextEditingController
-      controller;
-  final ValueChanged<String>
-      onChanged;
+  final TextEditingController controller;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    return TextField(
-      controller:
-          controller,
-      style:
-          AppText.body(
-        size: 13,
-        color:
-            AppColors.ink,
-      ),
-      cursorColor:
-          AppColors.ink,
-      onChanged:
-          onChanged,
-      decoration:
-          InputDecoration(
-        hintText:
-            'Search by name, email, phone or location',
-        hintStyle:
-            AppText.body(
-          size: 11.5,
-          color:
-              AppColors.muted,
-        ),
-        prefixIcon:
-            const Icon(
-          LucideIcons.search,
-          size: 18,
-        ),
+    return SearchSuggestionField(
+      controller: controller,
+      options: options,
+      onChanged: onChanged,
+      hintText: 'Search by name, email, phone or location',
+      textStyle: AppText.body(size: 13, color: AppColors.ink),
+      decoration: InputDecoration(
+        hintText: 'Search by name, email, phone or location',
+        hintStyle: AppText.body(size: 11.5, color: AppColors.muted),
+        prefixIcon: const Icon(LucideIcons.search, size: 18),
         filled: true,
-        fillColor:
-            AppColors.surface,
-        border:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(
-            18,
-          ),
-          borderSide:
-              const BorderSide(
-            color:
-                AppColors.line,
-          ),
-        ),
-        enabledBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(
-            18,
-          ),
-          borderSide:
-              const BorderSide(
-            color:
-                AppColors.line,
-          ),
-        ),
+        fillColor: AppColors.surface,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.line)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.line)),
       ),
     );
   }

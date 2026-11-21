@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../utils/duration_formatter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/job_service.dart';
 import '../utils/app_error.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/job_countdown_card.dart';
 
 class ClientActiveJobsScreen extends StatelessWidget {
   const ClientActiveJobsScreen({
@@ -750,7 +753,7 @@ class _ClientActiveJobCardState
             icon:
                 LucideIcons.clock3,
             text:
-                '$duration ${duration == 1 ? 'hour' : 'hours'}',
+                DurationFormatter.formatHours(duration),
           ),
 
           if (workerId.isNotEmpty) ...[
@@ -762,6 +765,11 @@ class _ClientActiveJobCardState
               workerId:
                   workerId,
             ),
+          ],
+
+          if (inProgress) ...[
+            const SizedBox(height: 14),
+            JobCountdownCard(job: job),
           ],
 
           const SizedBox(

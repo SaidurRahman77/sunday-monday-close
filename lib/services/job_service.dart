@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'notification_service.dart';
+import 'local_job_reminder_service.dart';
 
 class JobService {
   final FirebaseFirestore _firestore =
@@ -26,6 +27,7 @@ class JobService {
     required List<String> requiredSkills,
     required String description,
     required String location,
+    Map<String, dynamic>? locationData,
     required DateTime workDate,
     required String startTime,
     required int durationHours,
@@ -38,6 +40,29 @@ class JobService {
       throw Exception(
         'You must be logged in to post a job.',
       );
+    }
+
+    if (durationHours < 1 || durationHours > 72) {
+      throw ArgumentError.value(
+        durationHours,
+        'durationHours',
+        'Job duration must be between 1 and 72 hours.',
+      );
+    }
+
+    final timeMatch = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(startTime);
+    if (timeMatch == null) {
+      throw ArgumentError.value(startTime, 'startTime', 'Use HH:mm format.');
+    }
+    final scheduledStartAt = DateTime(
+      workDate.year,
+      workDate.month,
+      workDate.day,
+      int.parse(timeMatch.group(1)!),
+      int.parse(timeMatch.group(2)!),
+    );
+    if (!scheduledStartAt.isAfter(DateTime.now())) {
+      throw ArgumentError('The scheduled start time must be in the future.');
     }
 
     final docRef =
@@ -62,12 +87,15 @@ class JobService {
           description.trim(),
       'location':
           location.trim(),
+      if (locationData != null) 'locationData': locationData,
       'workDate':
           Timestamp.fromDate(
         workDate,
       ),
       'startTime':
           startTime,
+      'scheduledStartAt':
+          Timestamp.fromDate(scheduledStartAt),
       'durationHours':
           durationHours,
       'budget':
@@ -506,6 +534,8 @@ class JobService {
                 'in_progress',
             'startedAt':
                 FieldValue.serverTimestamp(),
+            'timeStatus':
+                'running',
             'updatedAt':
                 FieldValue.serverTimestamp(),
           },
@@ -515,6 +545,13 @@ class JobService {
 
     if (!changed) {
       return;
+    }
+
+    // Work has started: remove any remaining pre-start reminders locally.
+    try {
+      await LocalJobReminderService.instance.cancelJobReminders(jobId);
+    } catch (_) {
+      // A local notification plugin issue must not block starting the job.
     }
 
     await _sendNotificationSafely(
@@ -625,6 +662,8 @@ class JobService {
                 'completed',
             'completedAt':
                 FieldValue.serverTimestamp(),
+            'timeStatus':
+                'completed',
             'updatedAt':
                 FieldValue.serverTimestamp(),
           },

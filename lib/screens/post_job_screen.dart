@@ -7,7 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/job_service.dart';
+import '../models/location_data.dart';
+import '../widgets/location_picker_field.dart';
 import '../services/category_service.dart';
+import '../utils/duration_formatter.dart';
 
 import '../widgets/premium_ui.dart';
 
@@ -59,6 +62,9 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
       TextEditingController();
 
+  final TextEditingController _customDurationController =
+      TextEditingController(text: '2');
+
 
 
   List<String> _categories =
@@ -71,6 +77,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
 
   String? _selectedCategory;
+  Map<String, dynamic>? _locationData;
 
 
 
@@ -81,8 +88,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
 
   int _durationHours = 2;
-
-
+  bool _isCustomDurationSelected = false;
 
   bool _isSubmitting = false;
   @override
@@ -134,8 +140,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
     _locationController.dispose();
 
     _budgetController.dispose();
-
-
+    _customDurationController.dispose();
 
     super.dispose();
 
@@ -419,7 +424,18 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
     }
 
+    final scheduledStart = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
 
+    if (!scheduledStart.isAfter(DateTime.now())) {
+      _showMessage('Please select a future date and starting time.');
+      return;
+    }
 
     if (budget == null || budget <= 0) {
 
@@ -433,7 +449,26 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
     }
 
+    if (_isCustomDurationSelected) {
+      final customDuration =
+          int.tryParse(_customDurationController.text.trim());
 
+      if (customDuration == null ||
+          customDuration < 1 ||
+          customDuration > 72) {
+        _showMessage(
+          'Please enter a whole-number duration between 1 and 72 hours.',
+        );
+        return;
+      }
+
+      _durationHours = customDuration;
+    }
+
+    if (_durationHours < 1 || _durationHours > 72) {
+      _showMessage('Job duration must be between 1 and 72 hours.');
+      return;
+    }
 
     setState(() {
 
@@ -464,6 +499,8 @@ class _PostJobScreenState extends State<PostJobScreen> {
         description: description,
 
         location: location,
+
+        locationData: _locationData,
 
         workDate: _selectedDate!,
 
@@ -1139,20 +1176,17 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
 
 
-                    _PremiumTextField(
-
-                      controller:
-
-                          _locationController,
-
-                      hint:
-
-                          'e.g. Amberkhana, Sylhet',
-
-                      icon:
-
-                          LucideIcons.mapPin,
-
+                    LocationPickerField(
+                      label: '',
+                      controller: _locationController,
+                      initialLocation: _locationData == null
+                          ? null
+                          : LocationData.fromMap(_locationData!),
+                      onSelected: (location) {
+                        setState(() {
+                          _locationData = location.toMap();
+                        });
+                      },
                     ),
 
 
@@ -2106,139 +2140,214 @@ class _PostJobScreenState extends State<PostJobScreen> {
 
 
   Widget _buildDurationSelector() {
-
-    final durations = [
-
-      1,
-
-      2,
-
-      3,
-
-      4,
-
-      6,
-
-      8,
-
-    ];
-
-
-
-    return Wrap(
-
-      spacing: 9,
-
-      runSpacing: 9,
-
-      children: durations.map(
-
-        (hours) {
-
-          final selected =
-
-              _durationHours == hours;
-
-
-
-          return InkWell(
-
-            onTap: () {
-
-              setState(() {
-
-                _durationHours =
-
-                    hours;
-
-              });
-
-            },
-
-            borderRadius:
-
-                BorderRadius.circular(14),
-
-            child: AnimatedContainer(
-
-              duration: const Duration(
-
-                milliseconds: 180,
-
-              ),
-
-              padding:
-
-                  const EdgeInsets.symmetric(
-
-                horizontal: 16,
-
-                vertical: 11,
-
-              ),
-
-              decoration:
-
-                  BoxDecoration(
-
-                color: selected
-
-                    ? AppColors.ink
-
-                    : AppColors.surface,
-
-                borderRadius:
-
-                    BorderRadius.circular(
-
-                  14,
-
-                ),
-
-                border:
-
-                    Border.all(
-
-                  color: selected
-
-                      ? AppColors.ink
-
-                      : AppColors.line,
-
-                ),
-
-              ),
-
-              child: Text(
-
-                '$hours hr',
-
-                style:
-
-                    AppText.label(
-
-                  size: 11,
-
-                  color: selected
-
-                      ? Colors.white
-
-                      : AppColors.inkSoft,
-
-                ),
-
-              ),
-
-            ),
-
-          );
-
+    const durations = [1, 2, 3, 4, 6, 8, 12, 24];
+
+    Widget preset(int hours) {
+      final selected = !_isCustomDurationSelected &&
+          _durationHours == hours;
+
+      return InkWell(
+        onTap: () {
+          setState(() {
+            _isCustomDurationSelected = false;
+            _durationHours = hours;
+            _customDurationController.text = hours.toString();
+          });
         },
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.ink : AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.ink : AppColors.line,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$hours',
+                style: AppText.heading(
+                  size: 16,
+                  color: selected ? Colors.white : AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                hours == 1 ? 'Hour' : 'Hours',
+                style: AppText.label(
+                  size: 9,
+                  color: selected ? Colors.white70 : AppColors.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-      ).toList(),
-
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 9,
+          runSpacing: 9,
+          children: durations.map(preset).toList(),
+        ),
+        const SizedBox(height: 13),
+        InkWell(
+          onTap: () {
+            setState(() {
+              _isCustomDurationSelected = true;
+              if (_customDurationController.text.trim().isEmpty) {
+                _customDurationController.text = _durationHours.toString();
+              }
+              final parsed = int.tryParse(_customDurationController.text);
+              if (parsed != null && parsed >= 1 && parsed <= 72) {
+                _durationHours = parsed;
+              }
+            });
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _isCustomDurationSelected
+                  ? AppColors.goldSoft
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _isCustomDurationSelected
+                    ? AppColors.gold
+                    : AppColors.line,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.tune_rounded,
+                      size: 17,
+                      color: AppColors.ink,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Custom Duration',
+                        style: AppText.label(size: 12, color: AppColors.ink),
+                      ),
+                    ),
+                    if (_isCustomDurationSelected)
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 17,
+                        color: AppColors.success,
+                      ),
+                  ],
+                ),
+                if (_isCustomDurationSelected) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Duration (Hours)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Decrease duration',
+                        onPressed: _durationHours <= 1
+                            ? null
+                            : () {
+                                setState(() {
+                                  _durationHours--;
+                                  _customDurationController.text =
+                                      _durationHours.toString();
+                                });
+                              },
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: _customDurationController,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            hintText: '1 - 72',
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: AppColors.line),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: AppColors.line),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            final parsed = int.tryParse(value.trim());
+                            if (parsed != null &&
+                                parsed >= 1 &&
+                                parsed <= 72) {
+                              setState(() => _durationHours = parsed);
+                            }
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Increase duration',
+                        onPressed: _durationHours >= 72
+                            ? null
+                            : () {
+                                setState(() {
+                                  _durationHours++;
+                                  _customDurationController.text =
+                                      _durationHours.toString();
+                                });
+                              },
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    'Selected: ${DurationFormatter.formatHours(_durationHours)}',
+                    style: AppText.body(size: 10, color: AppColors.muted),
+                  ),
+                  Text(
+                    'Choose any whole number from 1 to 72 hours.',
+                    style: AppText.body(size: 9, color: AppColors.muted),
+                  ),
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Text(
+                      'Choose a custom duration from 1 to 72 hours.',
+                      style: AppText.body(size: 10, color: AppColors.muted),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
-
   }
 
 }

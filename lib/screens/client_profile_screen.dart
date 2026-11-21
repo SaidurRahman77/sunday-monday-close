@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/profile_service.dart';
+import '../models/location_data.dart';
+import '../widgets/location_picker_field.dart';
 import '../widgets/premium_ui.dart';
 import 'account_settings_screen.dart';
 
@@ -43,6 +45,7 @@ class _ClientProfileScreenState
 
   String _email = '';
   String _photoUrl = '';
+  Map<String, dynamic>? _locationData;
 
   String? _nameError;
   String? _phoneError;
@@ -104,9 +107,11 @@ class _ClientProfileScreenState
                 '';
 
         _locationController.text =
-            profile['location']
-                    ?.toString() ??
-                '';
+            profile['location']?.toString() ?? '';
+        final rawLocationData = profile['locationData'];
+        _locationData = rawLocationData is Map
+            ? Map<String, dynamic>.from(rawLocationData)
+            : null;
 
         _bioController.text =
             profile['bio']
@@ -306,6 +311,7 @@ class _ClientProfileScreenState
             _phoneController.text.trim(),
         location:
             _locationController.text.trim(),
+        locationData: _locationData,
         bio:
             _bioController.text.trim(),
       );
@@ -1068,27 +1074,17 @@ class _ClientProfileScreenState
                             height: 8,
                           ),
 
-                          _ProfileTextField(
-                            controller:
-                                _locationController,
-                            hint:
-                                'e.g. Amberkhana, Sylhet',
-                            icon:
-                                LucideIcons.mapPin,
-                            errorText:
-                                _locationError,
-                            maxLength: 100,
-                            onChanged: (
-                              value,
-                            ) {
+                          LocationPickerField(
+                            label: '',
+                            controller: _locationController,
+                            errorText: _locationError,
+                            initialLocation: _locationData == null
+                                ? null
+                                : LocationData.fromMap(_locationData!),
+                            onSelected: (location) {
                               setState(() {
-                                if (_locationError !=
-                                    null) {
-                                  _locationError =
-                                      _validateLocation(
-                                    value,
-                                  );
-                                }
+                                _locationData = location.toMap();
+                                _locationError = null;
                               });
                             },
                           ),

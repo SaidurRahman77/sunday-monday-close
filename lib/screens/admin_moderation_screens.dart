@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/admin_moderation_service.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/search_suggestion_field.dart';
 import '../widgets/safe_text_input_dialog.dart';
 
 class AdminReviewManagementScreen
@@ -227,11 +228,12 @@ class _AdminReviewManagementScreenState
                     );
                   }
 
-                  final reviews =
-                      _filtered(
-                    snapshot.data ??
-                        [],
+                  final allReviews = snapshot.data ?? <Map<String, dynamic>>[];
+                  final searchOptions = SearchSuggestionField.collectOptions(
+                    allReviews.expand((review) => [review['comment'], review['clientId'],
+                      review['workerId'], review['jobId']]),
                   );
+                  final reviews = _filtered(allReviews);
 
                   return ListView(
                     padding:
@@ -242,66 +244,22 @@ class _AdminReviewManagementScreenState
                       40,
                     ),
                     children: [
-                      TextField(
-                        controller:
-                            _searchController,
-                        style:
-                            AppText.body(
-                          size: 13,
-                          color:
-                              AppColors.ink,
-                        ),
-                        cursorColor:
-                            AppColors.ink,
-                        onChanged:
-                            (value) {
-                          setState(() {
-                            _query =
-                                value;
-                          });
-                        },
-                        decoration:
-                            InputDecoration(
-                          hintText:
-                              'Search comment, user ID or job ID',
-                          hintStyle:
-                              AppText.body(
-                            size: 11.5,
-                            color:
-                                AppColors.muted,
-                          ),
-                          prefixIcon:
-                              const Icon(
-                            LucideIcons.search,
-                            size: 18,
-                          ),
+                      SearchSuggestionField(
+                        controller: _searchController,
+                        options: searchOptions,
+                        hintText: 'Search comment, user ID or job ID',
+                        onChanged: (value) => setState(() => _query = value),
+                        textStyle: AppText.body(size: 13, color: AppColors.ink),
+                        decoration: InputDecoration(
+                          hintText: 'Search comment, user ID or job ID',
+                          hintStyle: AppText.body(size: 11.5, color: AppColors.muted),
+                          prefixIcon: const Icon(LucideIcons.search, size: 18),
                           filled: true,
-                          fillColor:
-                              AppColors.surface,
-                          border:
-                              OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                              18,
-                            ),
-                            borderSide:
-                                const BorderSide(
-                              color:
-                                  AppColors.line,
-                            ),
-                          ),
-                          enabledBorder:
-                              OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                              18,
-                            ),
-                            borderSide:
-                                const BorderSide(
-                              color:
-                                  AppColors.line,
-                            ),
-                          ),
+                          fillColor: AppColors.surface,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+                            borderSide: const BorderSide(color: AppColors.line)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+                            borderSide: const BorderSide(color: AppColors.line)),
                         ),
                       ),
                       const SizedBox(

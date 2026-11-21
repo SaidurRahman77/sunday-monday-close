@@ -11,6 +11,7 @@ import '../services/profile_service.dart';
 import '../widgets/premium_ui.dart';
 
 import 'client_dashboard_screen.dart';
+import 'worker_analytics_screen.dart';
 import 'find_jobs_screen.dart';
 import 'messages_screen.dart';
 import 'notifications_screen.dart';
@@ -356,6 +357,23 @@ class WorkerDashboardScreen extends StatelessWidget {
                         _replace(
                           context,
                           const WorkerWorkboardScreen(),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(
+                      height: 18,
+                    ),
+
+                    PremiumActionTile(
+                      icon: LucideIcons.activity,
+                      title: 'My Analytics',
+                      subtitle:
+                          'Track your work performance and monthly progress',
+                      onTap: () {
+                        _open(
+                          context,
+                          const WorkerAnalyticsScreen(),
                         );
                       },
                     ),

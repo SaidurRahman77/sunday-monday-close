@@ -766,6 +766,13 @@ _NotificationStyle _notificationStyle(
         color: AppColors.muted,
       );
 
+    case 'job_start_reminder':
+      return const _NotificationStyle(
+        icon: LucideIcons.clock3,
+        label: 'Start reminder',
+        color: AppColors.gold,
+      );
+
     case 'work_started':
       return const _NotificationStyle(
         icon: LucideIcons.play,

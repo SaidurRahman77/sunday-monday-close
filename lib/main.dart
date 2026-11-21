@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +12,7 @@ import 'screens/role_selection_screen.dart';
 import 'services/auth_service.dart';
 import 'services/account_status_service.dart';
 import 'services/session_service.dart';
+import 'services/local_job_reminder_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey =
     GlobalKey<NavigatorState>();
@@ -24,6 +27,17 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Pre-start reminders are scheduled locally on the assigned worker's device.
+  // No Cloud Functions, Cloud Scheduler, or Firebase Billing is used.
+  await LocalJobReminderService.instance.initialize();
+  FirebaseAuth.instance.authStateChanges().listen((user) {
+    if (user == null) {
+      unawaited(LocalJobReminderService.instance.stopForUser());
+    } else {
+      unawaited(LocalJobReminderService.instance.startForUser(user.uid));
+    }
+  });
 
   runApp(const MyApp());
 }
@@ -172,6 +186,8 @@ class _SessionGateState extends State<SessionGate>
       if (!isValid || !user.emailVerified) {
         await _authService.logout();
         await _redirectToLogin();
+      } else {
+        await LocalJobReminderService.instance.refresh();
       }
 
     } catch (e) {

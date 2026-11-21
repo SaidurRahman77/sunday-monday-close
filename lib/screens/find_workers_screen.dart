@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../services/category_service.dart';
 
 import '../widgets/premium_ui.dart';
+import '../widgets/search_suggestion_field.dart';
 import 'worker_public_profile_screen.dart';
 
 class FindWorkersScreen extends StatefulWidget {
@@ -320,42 +321,22 @@ class _FindWorkersScreenState
                   final currentUid =
                       _auth.currentUser?.uid;
 
-                  final workers =
+                  final allWorkers =
                       snapshot.data?.docs
-                              .where(
-                                (doc) {
-                                  if (doc.id ==
-                                      currentUid) {
-                                    return false;
-                                  }
-
-                                  final data =
-                                      doc.data();
-
-                                  return data[
-                                          'workerProfileComplete'] ==
-                                      true;
-                                },
-                              )
-                              .map(
-                                (doc) {
-                                  return <
-                                      String,
-                                      dynamic>{
-                                    ...doc
-                                        .data(),
-                                    'workerId':
-                                        doc.id,
-                                  };
-                                },
-                              )
-                              .where(
-                                _matchesFilters,
-                              )
+                              .where((doc) {
+                                if (doc.id == currentUid) return false;
+                                return doc.data()['workerProfileComplete'] == true;
+                              })
+                              .map((doc) => <String, dynamic>{
+                                ...doc.data(),
+                                'workerId': doc.id,
+                              })
                               .toList() ??
-                          <
-                              Map<String,
-                                  dynamic>>[];
+                          <Map<String, dynamic>>[];
+
+                  final workers = allWorkers
+                      .where(_matchesFilters)
+                      .toList();
 
                   _sortWorkers(
                     workers,
@@ -373,6 +354,15 @@ class _FindWorkersScreenState
                       _SearchBox(
                         controller:
                             _searchController,
+                        options: SearchSuggestionField.collectOptions(
+                          allWorkers.expand((worker) {
+                            final profile = worker['workerProfile'] is Map
+                                ? Map<String, dynamic>.from(worker['workerProfile'])
+                                : <String, dynamic>{};
+                            return [worker['name'], worker['location'], worker['bio'],
+                              profile['skills'], profile['categories']];
+                          }),
+                        ),
                         onChanged:
                             (value) {
                           setState(() {
@@ -619,11 +609,13 @@ class _SearchBox
     extends StatelessWidget {
   const _SearchBox({
     required this.controller,
+    required this.options,
     required this.onChanged,
     required this.onClear,
   });
 
   final TextEditingController controller;
+  final List<String> options;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
 
@@ -643,49 +635,23 @@ class _SearchBox
           color: AppColors.line,
         ),
       ),
-      child: TextField(
+      child: SearchSuggestionField(
         controller: controller,
+        options: options,
         onChanged: onChanged,
-        style: AppText.body(
-          size: 12.5,
+        hintText: 'Search name, skill or location',
+        decoration: InputDecoration(
+          hintText: 'Search name, skill or location',
+          hintStyle: AppText.body(size: 11.5, color: AppColors.muted),
+          prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.muted),
+          suffixIcon: controller.text.isEmpty ? null : IconButton(
+            onPressed: onClear,
+            icon: const Icon(LucideIcons.x, size: 17),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
         ),
-        decoration:
-            InputDecoration(
-          hintText:
-              'Search name, skill or location',
-          hintStyle:
-              AppText.body(
-            size: 11.5,
-            color:
-                AppColors.muted,
-          ),
-          prefixIcon:
-              const Icon(
-            LucideIcons.search,
-            size: 18,
-            color:
-                AppColors.muted,
-          ),
-          suffixIcon:
-              controller.text.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed:
-                          onClear,
-                      icon:
-                          const Icon(
-                        LucideIcons.x,
-                        size: 17,
-                      ),
-                    ),
-          border:
-              InputBorder.none,
-          contentPadding:
-              const EdgeInsets
-                  .symmetric(
-            vertical: 16,
-          ),
-        ),
+        textStyle: AppText.body(size: 12.5),
       ),
     );
   }

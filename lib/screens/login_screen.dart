@@ -76,7 +76,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
+    String loginStage = 'starting login';
+    bool authenticationSucceeded = false;
+
     try {
+      loginStage = 'loading platform settings';
+      debugPrint('[LOGIN] $loginStage');
       final settings =
           await _platformSettingsService.getSettings();
 
@@ -99,6 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // Check whether login is temporarily locked
+      loginStage = 'checking login lock';
+      debugPrint('[LOGIN] $loginStage');
       final lockInfo =
           await _securityService.checkLock(email);
 
@@ -118,15 +125,20 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // Firebase login
+      loginStage = 'Firebase Authentication';
+      debugPrint('[LOGIN] $loginStage');
       await _authService.login(
         email: email,
         password: password,
       );
 
-      // Reload latest Firebase user information
+      authenticationSucceeded = true;
+      loginStage = 'reloading Firebase user';
+      debugPrint('[LOGIN] Authentication succeeded; $loginStage');
       await _authService.reloadCurrentUser();
 
       final user = _authService.currentUser;
+
 
       if (user == null) {
         await _authService.logout();
@@ -154,9 +166,13 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      
       // --------------------------------------------------
-      // ENSURE FIRESTORE USER DOCUMENT EXISTS
+      // FIRESTORE USER PROFILE READ DIAGNOSTIC
       // --------------------------------------------------
+
+      loginStage = 'reading Firestore user profile';
+      debugPrint('[LOGIN] $loginStage');
 
       final userRef = FirebaseFirestore.instance
           .collection('users')
@@ -164,26 +180,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final userSnapshot = await userRef.get();
 
-      if (!userSnapshot.exists) {
-        await userRef.set({
-          'uid': user.uid,
-          'name': user.displayName?.trim() ?? '',
-          'email': user.email?.trim() ?? email,
-          'accountStatus': 'active',
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // Keep basic Auth info synced without overwriting
-        // existing client/worker profile information.
-        await userRef.set({
-          'uid': user.uid,
-          'email': user.email?.trim() ?? email,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+      debugPrint(
+        '[LOGIN] Firestore READ successful. '
+        'Document exists: ${userSnapshot.exists}',
+      );
+
+      debugPrint(
+        '[LOGIN] Firestore Document Path: users/${user.uid}',
+      );
+
 
       // Block suspended or removed accounts.
+      loginStage = 'checking account status';
+      debugPrint('[LOGIN] $loginStage');
       final accountStatus =
           await _accountStatusService.getCurrentStatus();
 
@@ -212,15 +221,27 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Login successful, reset failed attempt counter
-      await _securityService.resetAttempts(email);
+      // Resetting the failed-attempt counter is housekeeping.
+      // It must not prevent an otherwise valid user from entering the app.
+      loginStage = 'resetting failed-login counter';
+      debugPrint('[LOGIN] $loginStage');
+      try {
+        await _securityService.resetAttempts(email);
+      } catch (error, stackTrace) {
+        debugPrint('[LOGIN] Could not reset failed-attempt counter: $error');
+        debugPrint('$stackTrace');
+      }
 
       // Start a new 15-minute background session.
+      loginStage = 'starting app session';
+      debugPrint('[LOGIN] $loginStage');
       await SessionService.startSession();
 
       if (!mounted) return;
 
       // Go to role selection screen
+      loginStage = 'opening role selection';
+      debugPrint('[LOGIN] $loginStage');
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -293,11 +314,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Login failed. Please try again.',
           );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('========== LOGIN FLOW ERROR ==========');
+      debugPrint('Stage: $loginStage');
+      debugPrint('Authentication succeeded: $authenticationSucceeded');
+      debugPrint('Error type: ${e.runtimeType}');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('Current Firebase UID: ${_authService.currentUser?.uid}');
+      debugPrint('======================================');
+
       if (!mounted) return;
 
       _showMessage(
-        'Something went wrong. Please try again.',
+        authenticationSucceeded
+            ? 'Your password was accepted, but account setup failed. Please try again.'
+            : 'Something went wrong. Please try again.',
       );
     } finally {
       if (mounted) {

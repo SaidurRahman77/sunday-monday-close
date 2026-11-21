@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../utils/duration_formatter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/job_service.dart';
@@ -673,7 +675,7 @@ class _HistoryJobCard
             icon:
                 LucideIcons.clock3,
             text:
-                '$duration ${duration == 1 ? 'hour' : 'hours'}',
+                DurationFormatter.formatHours(duration),
           ),
 
           const SizedBox(

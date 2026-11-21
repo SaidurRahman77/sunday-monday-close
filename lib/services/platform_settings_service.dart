@@ -20,6 +20,8 @@ class PlatformSettingsService {
       defaultSettings = {
     'maintenanceMode': false,
     'allowNewRegistrations': true,
+    'locationSearchBaseUrl':
+        'https://nominatim.openstreetmap.org',
     'maintenanceMessage':
         'The platform is temporarily unavailable for maintenance. Please try again later.',
   };

@@ -321,6 +321,7 @@ class ProfileService {
     required String name,
     required String phone,
     required String location,
+    Map<String, dynamic>? locationData,
     required String bio,
   }) async {
     final user =
@@ -387,6 +388,8 @@ class ProfileService {
       'location':
           locationValue,
 
+      if (locationData != null) 'locationData': locationData,
+
       'bio':
           bioValue,
 
@@ -427,6 +430,7 @@ class ProfileService {
     required String name,
     required String phone,
     required String location,
+    Map<String, dynamic>? locationData,
     required String bio,
     required List<String> skills,
     required List<String> categories,
@@ -566,6 +570,8 @@ class ProfileService {
 
       'location':
           locationValue,
+
+      if (locationData != null) 'locationData': locationData,
 
       'bio':
           bioValue,

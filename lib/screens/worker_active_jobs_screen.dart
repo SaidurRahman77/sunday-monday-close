@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../utils/duration_formatter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/job_service.dart';
 import '../utils/app_error.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/job_countdown_card.dart';
 
 class WorkerActiveJobsScreen extends StatelessWidget {
   const WorkerActiveJobsScreen({
@@ -616,6 +619,8 @@ class _ActiveJobCardState
         status ==
             'assigned';
 
+    final inProgress = status == 'in_progress';
+
     return Container(
       padding:
           const EdgeInsets.all(
@@ -745,8 +750,13 @@ class _ActiveJobCardState
             icon:
                 LucideIcons.clock3,
             text:
-                '$duration ${duration == 1 ? 'hour' : 'hours'}',
+                DurationFormatter.formatHours(duration),
           ),
+
+          if (inProgress) ...[
+            const SizedBox(height: 14),
+            JobCountdownCard(job: job),
+          ],
 
           const SizedBox(
             height: 17,

@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/chat_service.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/search_suggestion_field.dart';
 import 'chat_screen.dart';
 
 enum _MessageFilter {
@@ -38,6 +39,7 @@ class _MessagesScreenState
       _photoCache = {};
 
   String _searchQuery = '';
+  List<String> _searchOptions = const [];
 
   _MessageFilter _filter =
       _MessageFilter.all;
@@ -69,6 +71,7 @@ class _MessagesScreenState
             _SearchAndFilter(
               controller:
                   _searchController,
+              options: _searchOptions,
               selectedFilter:
                   _filter,
               onSearchChanged:
@@ -401,6 +404,16 @@ class _MessagesScreenState
       );
     }
 
+    final options = SearchSuggestionField.collectOptions(
+      result.expand((conversation) => [
+        conversation.otherUserName,
+        conversation.jobTitle,
+        conversation.lastMessage,
+      ]),
+    );
+    if (mounted && options.join('|') != _searchOptions.join('|')) {
+      setState(() => _searchOptions = options);
+    }
     return result;
   }
 
@@ -495,14 +508,15 @@ class _SearchAndFilter
     extends StatelessWidget {
   const _SearchAndFilter({
     required this.controller,
+    required this.options,
     required this.selectedFilter,
     required this.onSearchChanged,
     required this.onClear,
     required this.onFilterChanged,
   });
 
-  final TextEditingController
-      controller;
+  final TextEditingController controller;
+  final List<String> options;
 
   final _MessageFilter
       selectedFilter;
@@ -531,108 +545,31 @@ class _SearchAndFilter
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller:
-                controller,
-            onChanged:
-                onSearchChanged,
-            textInputAction:
-                TextInputAction.search,
-            style:
-                AppText.body(
-              size:
-                  12,
-              color:
-                  AppColors.ink,
-            ),
-            decoration:
-                InputDecoration(
-              hintText:
-                  'Search conversations',
-              hintStyle:
-                  AppText.body(
-                size:
-                    11.5,
-                color:
-                    AppColors.muted,
-              ),
-              prefixIcon:
-                  const Icon(
-                LucideIcons.search,
-                size:
-                    18,
-                color:
-                    AppColors.muted,
-              ),
-              suffixIcon:
-                  controller
-                          .text
-                          .isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed:
-                              onClear,
-                          icon:
-                              const Icon(
-                            LucideIcons.x,
-                            size:
-                                17,
-                            color:
-                                AppColors
-                                    .muted,
-                          ),
-                        ),
-              filled:
-                  true,
-              fillColor:
-                  AppColors.surface,
-              contentPadding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal:
-                    14,
-                vertical:
-                    13,
-              ),
-              border:
-                  OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-                borderSide:
-                    const BorderSide(
-                  color:
-                      AppColors.line,
-                ),
-              ),
-              enabledBorder:
-                  OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-                borderSide:
-                    const BorderSide(
-                  color:
-                      AppColors.line,
-                ),
-              ),
-              focusedBorder:
-                  OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-                borderSide:
-                    const BorderSide(
-                  color:
-                      AppColors.ink,
-                ),
-              ),
+          SearchSuggestionField(
+            controller: controller,
+            options: options,
+            hintText: 'Search conversations',
+            onChanged: onSearchChanged,
+            textStyle: AppText.body(size: 12, color: AppColors.ink),
+            decoration: InputDecoration(
+              hintText: 'Search conversations',
+              hintStyle: AppText.body(size: 11.5, color: AppColors.muted),
+              prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.muted),
+              suffixIcon: controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: onClear,
+                      icon: const Icon(LucideIcons.x, size: 17, color: AppColors.muted),
+                    ),
+              filled: true,
+              fillColor: AppColors.surface,
+              contentPadding: const EdgeInsets.symmetric(vertical: 15),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.line)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppColors.line)),
             ),
           ),
-
           const SizedBox(
             height:
                 11,

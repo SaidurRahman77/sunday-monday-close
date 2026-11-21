@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../services/profile_service.dart';
 import '../widgets/premium_ui.dart';
 
+import 'client_analytics_screen.dart';
 import 'client_active_jobs_screen.dart';
 import 'client_job_history_screen.dart';
 import 'client_profile_screen.dart';
@@ -425,6 +426,23 @@ class ClientDashboardScreen extends StatelessWidget {
                               const ClientWorkboardScreen(),
                             );
                           },
+                        );
+                      },
+                    ),
+
+                    const SizedBox(
+                      height: 18,
+                    ),
+
+                    PremiumActionTile(
+                      icon: LucideIcons.activity,
+                      title: 'Job Analytics',
+                      subtitle:
+                          'View your job statistics and monthly posting trends',
+                      onTap: () {
+                        _open(
+                          context,
+                          const ClientAnalyticsScreen(),
                         );
                       },
                     ),

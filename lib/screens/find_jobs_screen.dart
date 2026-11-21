@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../utils/duration_formatter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/application_service.dart';
@@ -10,10 +12,11 @@ import '../services/job_service.dart';
 import '../services/profile_service.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/report_dialog.dart';
+import '../widgets/search_suggestion_field.dart';
 
 import 'chat_screen.dart';
 
-class FindJobsScreen extends StatelessWidget {
+class FindJobsScreen extends StatefulWidget {
   const FindJobsScreen({
     super.key,
     this.bestMatchesOnly = false,
@@ -22,21 +25,52 @@ class FindJobsScreen extends StatelessWidget {
   final bool bestMatchesOnly;
 
   @override
-  Widget build(BuildContext context) {
-    final jobService = JobService();
-    final profileService = ProfileService();
+  State<FindJobsScreen> createState() => _FindJobsScreenState();
+}
 
+class _FindJobsScreenState extends State<FindJobsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  late final Stream<Map<String, dynamic>?> _profileStream =
+      ProfileService().getProfileStream();
+  late final Stream<List<Map<String, dynamic>>> _jobsStream =
+      JobService().getOpenJobs();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  bool _matchesSearch(Map<String, dynamic> job) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    final searchable = [
+      job['title'], job['category'], job['location'], job['description'],
+      job['clientName'], job['clientEmail'], job['jobType'], job['workType'],
+      job['budget'], job['skills'], job['requirements'],
+    ].map((value) => value?.toString() ?? '').join(' ').toLowerCase();
+    return searchable.contains(query);
+  }
+
+  void _focusSearch() => _searchFocusNode.requestFocus();
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
             _FindJobsHeader(
-              bestMatchesOnly: bestMatchesOnly,
+              bestMatchesOnly: widget.bestMatchesOnly,
+              onSearchPressed: _focusSearch,
             ),
             Expanded(
               child: StreamBuilder<Map<String, dynamic>?>(
-                stream: profileService.getProfileStream(),
+                stream: _profileStream,
                 builder: (
                   context,
                   profileSnapshot,
@@ -64,7 +98,7 @@ class FindJobsScreen extends StatelessWidget {
 
                   return StreamBuilder<
                       List<Map<String, dynamic>>>(
-                    stream: jobService.getOpenJobs(),
+                    stream: _jobsStream,
                     builder: (
                       context,
                       jobSnapshot,
@@ -87,7 +121,7 @@ class FindJobsScreen extends StatelessWidget {
                       if (jobs.isEmpty) {
                         return _EmptyJobsState(
                           bestMatchesOnly:
-                              bestMatchesOnly,
+                              widget.bestMatchesOnly,
                         );
                       }
 
@@ -147,24 +181,24 @@ class FindJobsScreen extends StatelessWidget {
                         },
                       );
 
-                      final visibleJobs =
-                          bestMatchesOnly
+                      final eligibleJobs =
+                          widget.bestMatchesOnly
                               ? matchedJobs
-                                  .where(
-                                    (item) =>
-                                        item.match.total >=
-                                            60 &&
-                                        item.match.available,
-                                  )
+                                  .where((item) =>
+                                      item.match.total >= 60 && item.match.available)
                                   .toList()
                               : matchedJobs;
-
-                      if (visibleJobs.isEmpty) {
-                        return _EmptyJobsState(
-                          bestMatchesOnly:
-                              bestMatchesOnly,
-                        );
-                      }
+                      final searchOptions =
+                          SearchSuggestionField.collectOptions(
+                        eligibleJobs.map((item) => item.job).expand((job) => [
+                          job['title'], job['category'], job['location'],
+                          job['jobType'], job['workType'], job['skills'],
+                          job['requirements'],
+                        ]),
+                      );
+                      final visibleJobs = eligibleJobs
+                          .where((item) => _matchesSearch(item.job))
+                          .toList();
 
                       return ListView(
                         padding:
@@ -183,29 +217,39 @@ class FindJobsScreen extends StatelessWidget {
                               height: 16,
                             ),
 
+                          SearchSuggestionField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            options: searchOptions,
+                            hintText: 'Search jobs, skills, category or location',
+                            onChanged: (value) {
+                              setState(() => _searchQuery = value);
+                            },
+                          ),
+                          const SizedBox(height: 16),
                           _ResultSummary(
                             count:
                                 visibleJobs.length,
                             bestMatchesOnly:
-                                bestMatchesOnly,
+                                widget.bestMatchesOnly,
                           ),
 
                           const SizedBox(
                             height: 18,
                           ),
 
-                          ...visibleJobs.map(
-                            (item) => Padding(
-                              padding:
-                                  const EdgeInsets.only(
-                                bottom: 14,
-                              ),
-                              child: _JobCard(
-                                job: item.job,
-                                match: item.match,
+                          if (visibleJobs.isEmpty)
+                            const _NoSearchResults()
+                          else
+                            ...visibleJobs.map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: _JobCard(
+                                  job: item.job,
+                                  match: item.match,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       );
                     },
@@ -223,9 +267,11 @@ class FindJobsScreen extends StatelessWidget {
 class _FindJobsHeader extends StatelessWidget {
   const _FindJobsHeader({
     required this.bestMatchesOnly,
+    required this.onSearchPressed,
   });
 
   final bool bestMatchesOnly;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -311,27 +357,19 @@ class _FindJobsHeader extends StatelessWidget {
             ),
           ),
 
-          Container(
-            width: 40,
-            height: 40,
-            alignment:
-                Alignment.center,
-            decoration:
-                BoxDecoration(
-              color:
-                  AppColors.goldSoft,
-              borderRadius:
-                  BorderRadius.circular(
-                13,
+          Material(
+            color: AppColors.goldSoft,
+            borderRadius: BorderRadius.circular(13),
+            child: InkWell(
+              onTap: onSearchPressed,
+              borderRadius: BorderRadius.circular(13),
+              child: const SizedBox(
+                width: 40,
+                height: 40,
+                child: Center(
+                  child: Icon(LucideIcons.search, size: 18, color: AppColors.ink),
+                ),
               ),
-            ),
-            child: Icon(
-              bestMatchesOnly
-                  ? LucideIcons.sparkles
-                  : LucideIcons.search,
-              size: 18,
-              color:
-                  AppColors.ink,
             ),
           ),
         ],
@@ -670,7 +708,7 @@ class _JobCard extends StatelessWidget {
                 icon:
                     LucideIcons.clock3,
                 value:
-                    '$duration ${duration == 1 ? 'hour' : 'hours'}',
+                    DurationFormatter.formatHours(duration),
               ),
 
               const SizedBox(
@@ -843,6 +881,30 @@ class _LoadingState extends StatelessWidget {
   }
 }
 
+class _NoSearchResults extends StatelessWidget {
+  const _NoSearchResults();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 24),
+      child: Column(
+        children: [
+          const Icon(LucideIcons.search, size: 34, color: AppColors.muted),
+          const SizedBox(height: 12),
+          Text('No matching jobs found', style: AppText.heading(size: 16)),
+          const SizedBox(height: 5),
+          Text(
+            'Try a different job title, skill, category or location.',
+            textAlign: TextAlign.center,
+            style: AppText.body(size: 11, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EmptyJobsState extends StatelessWidget {
   const _EmptyJobsState({
     required this.bestMatchesOnly,
@@ -994,14 +1056,17 @@ _MatchBreakdown _calculateMatch({
           ? 25
           : 0;
 
-  final locationScore =
-      _calculateLocationScore(
-    job['location']
-            ?.toString() ??
-        '',
-    profile?['location']
-            ?.toString() ??
-        '',
+  final jobLocationData = job['locationData'];
+  final workerLocationData = profile?['locationData'];
+  final locationScore = _calculateLocationScore(
+    jobLocation: job['location']?.toString() ?? '',
+    workerLocation: profile?['location']?.toString() ?? '',
+    jobLocationData: jobLocationData is Map
+        ? Map<String, dynamic>.from(jobLocationData)
+        : null,
+    workerLocationData: workerLocationData is Map
+        ? Map<String, dynamic>.from(workerLocationData)
+        : null,
   );
 
   final ratingScore =
@@ -1260,76 +1325,73 @@ bool _matchesAvailability(
   return false;
 }
 
-int _calculateLocationScore(
-  String jobLocation,
-  String workerLocation,
+int _calculateLocationScore({
+  required String jobLocation,
+  required String workerLocation,
+  Map<String, dynamic>? jobLocationData,
+  Map<String, dynamic>? workerLocationData,
+}) {
+  final jobLatitude = (jobLocationData?['latitude'] as num?)?.toDouble();
+  final jobLongitude = (jobLocationData?['longitude'] as num?)?.toDouble();
+  final workerLatitude = (workerLocationData?['latitude'] as num?)?.toDouble();
+  final workerLongitude = (workerLocationData?['longitude'] as num?)?.toDouble();
+
+  final hasCoordinates =
+      jobLatitude != null && jobLongitude != null &&
+      workerLatitude != null && workerLongitude != null &&
+      jobLatitude >= -90 && jobLatitude <= 90 &&
+      workerLatitude >= -90 && workerLatitude <= 90 &&
+      jobLongitude >= -180 && jobLongitude <= 180 &&
+      workerLongitude >= -180 && workerLongitude <= 180 &&
+      !(jobLatitude == 0 && jobLongitude == 0) &&
+      !(workerLatitude == 0 && workerLongitude == 0);
+
+  if (hasCoordinates) {
+    final distanceKm = _haversineDistanceKm(
+      jobLatitude,
+      jobLongitude,
+      workerLatitude,
+      workerLongitude,
+    );
+    if (distanceKm <= 5) return 15;
+    if (distanceKm <= 15) return 12;
+    if (distanceKm <= 30) return 9;
+    if (distanceKm <= 60) return 5;
+    return 0;
+  }
+
+  // Legacy users/jobs without structured coordinates retain the old text score.
+  final job = _normalize(jobLocation);
+  final worker = _normalize(workerLocation);
+  if (job.isEmpty || worker.isEmpty) return 0;
+  if (job == worker || job.contains(worker) || worker.contains(job)) return 15;
+
+  final jobWords = job.split(' ').where((word) => word.length > 2).toSet();
+  final workerWords = worker.split(' ').where((word) => word.length > 2).toSet();
+  if (jobWords.isEmpty || workerWords.isEmpty) return 0;
+
+  final common = jobWords.intersection(workerWords).length;
+  final maxWords = max(jobWords.length, workerWords.length);
+  final ratio = common / maxWords;
+  return (15 * ratio.clamp(0.0, 1.0)).round();
+}
+
+double _haversineDistanceKm(
+  double latitude1,
+  double longitude1,
+  double latitude2,
+  double longitude2,
 ) {
-  final job =
-      _normalize(
-    jobLocation,
-  );
-
-  final worker =
-      _normalize(
-    workerLocation,
-  );
-
-  if (job.isEmpty ||
-      worker.isEmpty) {
-    return 0;
-  }
-
-  if (job == worker ||
-      job.contains(worker) ||
-      worker.contains(job)) {
-    return 15;
-  }
-
-  final jobWords =
-      job
-          .split(' ')
-          .where(
-            (word) =>
-                word.length > 2,
-          )
-          .toSet();
-
-  final workerWords =
-      worker
-          .split(' ')
-          .where(
-            (word) =>
-                word.length > 2,
-          )
-          .toSet();
-
-  if (jobWords.isEmpty ||
-      workerWords.isEmpty) {
-    return 0;
-  }
-
-  final common =
-      jobWords
-          .intersection(
-            workerWords,
-          )
-          .length;
-
-  final maxWords =
-      max(
-    jobWords.length,
-    workerWords.length,
-  );
-
-  final ratio =
-      common / maxWords;
-
-  return (15 *
-          ratio.clamp(
-            0.0,
-            1.0,
-          ))
-      .round();
+  const earthRadiusKm = 6371.0;
+  final lat1 = latitude1 * pi / 180;
+  final lat2 = latitude2 * pi / 180;
+  final deltaLat = (latitude2 - latitude1) * pi / 180;
+  final deltaLon = (longitude2 - longitude1) * pi / 180;
+  final a = pow(sin(deltaLat / 2), 2) +
+      cos(lat1) * cos(lat2) * pow(sin(deltaLon / 2), 2);
+  final boundedA = a.clamp(0.0, 1.0);
+  final c = 2 * atan2(sqrt(boundedA), sqrt(1 - boundedA));
+  return earthRadiusKm * c;
 }
 
 int _calculateRatingScore(
@@ -2170,8 +2232,7 @@ Future<void> _showJobDetails(
                           'Schedule',
                       value:
                           '$date • $start • '
-                          '$duration '
-                          '${duration == 1 ? 'hour' : 'hours'}',
+                          '${DurationFormatter.formatHours(duration)}',
                     ),
 
                     const SizedBox(

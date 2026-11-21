@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../utils/duration_formatter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../services/admin_job_service.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/search_suggestion_field.dart';
 import '../widgets/safe_text_input_dialog.dart';
 
 class AdminJobManagementScreen
@@ -281,7 +284,7 @@ class _AdminJobManagementScreenState
                   _DetailRow(
                     label: 'Duration',
                     value:
-                        '${(job['durationHours'] as num?)?.toInt() ?? 0} hour(s)',
+                        DurationFormatter.formatHours((job['durationHours'] as num?)?.toInt() ?? 0),
                   ),
                   _DetailRow(
                     label: 'Assigned worker',
@@ -630,6 +633,10 @@ class _AdminJobManagementScreenState
                       _SearchBox(
                         controller:
                             _searchController,
+                        options: SearchSuggestionField.collectOptions(
+                          jobs.expand((job) => [job['title'], job['category'],
+                            job['clientEmail'], job['location']]),
+                        ),
                         onChanged:
                             (value) {
                           setState(() {
@@ -804,71 +811,34 @@ class _SearchBox
     extends StatelessWidget {
   const _SearchBox({
     required this.controller,
+    required this.options,
     required this.onChanged,
   });
 
   final TextEditingController controller;
+  final List<String> options;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    return TextField(
-      controller:
-          controller,
-      style:
-          AppText.body(
-        size: 13,
-        color:
-            AppColors.ink,
-      ),
-      cursorColor:
-          AppColors.ink,
-      onChanged:
-          onChanged,
-      decoration:
-          InputDecoration(
-        hintText:
-            'Search title, category, client or location',
-        hintStyle:
-            AppText.body(
-          size: 11.5,
-          color:
-              AppColors.muted,
-        ),
-        prefixIcon:
-            const Icon(
-          LucideIcons.search,
-          size: 18,
-        ),
+    return SearchSuggestionField(
+      controller: controller,
+      options: options,
+      onChanged: onChanged,
+      hintText: 'Search title, category, client or location',
+      textStyle: AppText.body(size: 13, color: AppColors.ink),
+      decoration: InputDecoration(
+        hintText: 'Search title, category, client or location',
+        hintStyle: AppText.body(size: 11.5, color: AppColors.muted),
+        prefixIcon: const Icon(LucideIcons.search, size: 18),
         filled: true,
-        fillColor:
-            AppColors.surface,
-        border:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(
-            18,
-          ),
-          borderSide:
-              const BorderSide(
-            color:
-                AppColors.line,
-          ),
-        ),
-        enabledBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(
-            18,
-          ),
-          borderSide:
-              const BorderSide(
-            color:
-                AppColors.line,
-          ),
-        ),
+        fillColor: AppColors.surface,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.line)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.line)),
       ),
     );
   }
